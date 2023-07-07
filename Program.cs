@@ -1,5 +1,6 @@
 using CryptoUtils.Data;
 using CryptoUtils.Models;
+using CryptoUtils.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -23,6 +24,9 @@ namespace CryptoUtils
                     /* register AppSettings as singleton service */
                     services.AddSingleton<IAppSettings>(sp =>
                         sp.GetRequiredService<IOptions<AppSettings>>().Value);
+
+                    /* declares domain parameters service */
+                    services.AddTransient<IDomainService, DomainService>();
                     services.AddHostedService<Worker>();
                 })
                 .Build();
