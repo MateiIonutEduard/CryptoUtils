@@ -12,14 +12,52 @@ namespace CryptoUtils
         static bool atkin = false;
         static bool search = false;
 
+        static List<ModularPolynomial> Gl;
+        static List<int> p;
+
         static bool escape = false;
         static EllipticCurve curve;
+        static StreamReader sr;
 
         public static void GenDomain(int bits, bool Search, bool Atkin=false)
         {
+            sr = new StreamReader("mueller.raw");
             curve = new EllipticCurve(bits);
+            ReadModularPolynomialsByLimit(curve.field);
+
             search = Search;
             atkin = Atkin;
+        }
+
+        static void ReadModularPolynomialsByLimit(BigInteger field)
+        {
+            BigInteger lim = 2;
+            BigInteger Q4 = field.GetBits() > 256 ?
+                (field >> 72).Sqrt() : (field >> 64).Sqrt();
+
+            p = new List<int>();
+            Gl = new List<ModularPolynomial>();
+
+            while (lim < Q4)
+            {
+                int prime = int.Parse(sr.ReadLine());
+                ModularPolynomial mp = new ModularPolynomial();
+
+                while (true)
+                {
+                    BigInteger c = new BigInteger(sr.ReadLine());
+                    int dx = int.Parse(sr.ReadLine());
+
+                    int dy = int.Parse(sr.ReadLine());
+                    mp.AddTerm(c, dx, dy);
+
+                    if (dx == 0 && dy == 0)
+                        break;
+                }
+
+                Gl.Add(mp);
+                p.Add(prime);
+            }
         }
 
         static void mul(int p, int qnr, int x, int y, ref int a, ref int b)
