@@ -14,7 +14,7 @@ namespace CryptoUtils
         static bool search = false;
 
         static List<ModularPolynomial> Gl;
-        static List<int> p;
+        static List<int> prime;
 
         static bool escape = false;
         static EllipticCurve curve;
@@ -46,7 +46,9 @@ namespace CryptoUtils
 
                 List<int> u = new List<int>();
                 List<int> v = new List<int>();
+
                 bool found = false;
+                int index = 0;
 
                 while(!found)
                 {
@@ -77,11 +79,154 @@ namespace CryptoUtils
 
                     BigInteger tau = 0;
 
-                    ModularPolynomial Gl, dGx, dGy, dGxx, dGxy, dGyy;
+                    ModularPolynomial dGx, dGy, dGxx, dGxy, dGyy;
                     Field Eg, Ej, Exy, Dg, Dj, E4b, E6b, p1;
                     Field atilde, btilde, jl, E4bl, E2bs, gd, jd, E0b;
                     Field Dgd, Djd, E0bd, f, fd, Dgs, Djs, jld, E6bl;
                     int s, el, count;
+
+                    E4b = (Field)(-a) / 3;
+                    E6b = (Field)(-b) / 2;
+                    delta = (E4b * E4b * E4b - E6b * E6b) / 1728;
+
+                    while(index < Gl.Count && lim < Q4)
+                    {
+                        int p = prime[index];
+
+                        for (s = 1; ; s++)
+                            if (s * (p - 1) % 12 == 0) break;
+
+                        Polynomial mod = Gl[index].F((BigInteger)j);
+                        XP = Polynomial.Pow(X, field, mod);
+
+                        Polynomial G = Polynomial.Gcd(XP - X, mod);
+                        if (G.Degree == p + 1) continue;
+
+                        if(G.Degree == 0)
+                        {
+                            // Atkin case
+                            PolyMod.SetModulus(mod);
+                            PolyMod[] m = new PolyMod[p + 1];
+                            int max_r = p + 1, l = 0, r = 2;
+
+                            m[0] = XP;
+                            bool useful = false;
+
+                            int k = (int)(field % p);
+                            m[1] = PolyMod.Compose(m[0], m[0]);
+                            if (!atkin) max_r = 2;
+
+                            // Compute Frobenius map
+                            for (r = 2; r <= max_r; r++)
+                            {
+                                PolyMod C = 0;
+                                int js = (p + 1) / r;
+                                int sym = BigInteger.Jacobi(k, p);
+
+                                if ((p + 1) % r != 0) continue;
+                                if (js % 2 == 0 && sym == -1) continue;
+                                if (js % 2 == 1 && sym == 1) continue;
+
+                                int kk = r, i = 0;
+                                bool first = true;
+
+                                while (kk > 0)
+                                {
+                                    if ((kk & 1) == 1)
+                                    {
+                                        if (first) C = m[i];
+                                        else C = PolyMod.Compose(m[i], C);
+                                        first = false;
+                                    }
+
+                                    kk >>= 1;
+                                    if (kk == 0) break;
+                                    i++;
+
+                                    if (i > l)
+                                    {
+                                        m[i] = PolyMod.Compose(m[i - 1], m[i - 1]);
+                                        l = i;
+                                    }
+                                }
+
+                                PolyMod ok = C - X;
+
+                                if (ok == 0)
+                                {
+                                    useful = true;
+                                    break;
+                                }
+                            }
+
+                            if (!useful) continue;
+                            int ax = 0, by = 0, candidates, gx, gy, ord, qnr = 2;
+                            bool gen = false;
+
+                            while (BigInteger.Jacobi(qnr, p) != -1)
+                                qnr++;
+
+                            ord = p * p - 1;
+                            gy = 1;
+
+                            for (gx = 1; gx < p; gx++)
+                            {
+                                gen = true;
+
+                                for (int jj = 2; jj <= ord / 2; jj++)
+                                {
+                                    if (ord % jj != 0) continue;
+                                    quad(p, qnr, gx, gy, ord / jj, ref ax, ref by);
+
+                                    if (ax == 1 && by == 0)
+                                    {
+                                        gen = false;
+                                        break;
+                                    }
+                                }
+
+                                if (gen) break;
+                            }
+
+                            candidates = 0;
+                            lim *= p;
+
+                            for (int jj = 1; jj < r; jj++)
+                            {
+                                if (jj > 1 && gcd(jj, r) != 1) continue;
+                                quad(p, qnr, gx, gy, jj * ord / r, ref ax, ref by);
+
+                                BigInteger two = 2;
+                                tau = ((ax + 1) * k * (int)two.Inverse(p)) % p;
+
+                                if (tau == 0)
+                                {
+                                    if ((field + 1 - tau) % p == 0)
+                                    {
+                                        if (search)
+                                            escape = true;
+                                    }
+
+                                    u.Add((int)tau);
+                                    v.Add(p);
+                                    break;
+                                }
+                                else if (BigInteger.Jacobi(tau, p) == 1)
+                                {
+                                    tau = Eduard.Core.sqrmp((uint)tau, (uint)p);
+                                    tau = (2 * tau) % p;
+                                    if (candidates == phi(r)) break;
+                                }
+                            }
+
+                            if (escape) break;
+                            continue;
+                        }
+                        else
+                        {
+
+                        }
+                    }
                 }
             }
             else
@@ -333,12 +478,12 @@ namespace CryptoUtils
             BigInteger Q4 = field.GetBits() > 256 ?
                 (field >> 72).Sqrt() : (field >> 64).Sqrt();
 
-            p = new List<int>();
+            prime = new List<int>();
             Gl = new List<ModularPolynomial>();
 
             while (lim < Q4)
             {
-                int prime = int.Parse(sr.ReadLine());
+                int p = int.Parse(sr.ReadLine());
                 ModularPolynomial mp = new ModularPolynomial();
 
                 while (true)
@@ -354,7 +499,7 @@ namespace CryptoUtils
                 }
 
                 Gl.Add(mp);
-                p.Add(prime);
+                prime.Add(p);
             }
         }
 
