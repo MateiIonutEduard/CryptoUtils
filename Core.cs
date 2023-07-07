@@ -285,6 +285,43 @@ namespace CryptoUtils
                                 p1 = -el * E2bs / 2;
                             }
 
+                            int ld = (p - 1) / 2;
+                            int ld1 = (p - 3) / 2;
+
+                            Field[] cf = new Field[ld1];
+                            get_ck(ld1, a, b, cf);
+
+                            Polynomial[] WP = new Polynomial[ld];
+                            WP[0] = new Polynomial(ld);
+                            WP[0].coeffs[0] = 1;
+
+                            for (int k = ld1; k > 0; k--)
+                                WP[0].coeffs[k + 1] = cf[k - 1].fn;
+
+                            for (int k = 1; k < ld; k++)
+                                WP[k] = Polynomial.Modxn(WP[k - 1] * WP[0], ld + 1);
+
+                            Field[] cft = new Field[ld1];
+                            get_ck(ld1, atilde, btilde, cft);
+
+                            Polynomial Y = new Polynomial(ld);
+                            Y.coeffs[0] = 0;
+                            Y.coeffs[1] = (BigInteger)(-p1);
+
+                            for (int k = ld1; k > 0; k--)
+                                Y.coeffs[k + 1] = (BigInteger)((p * cf[k - 1] - cft[k - 1]) / ((Field)(2 * k + 1) * (2 * k + 2)));
+
+                            BigInteger RF = 1;
+                            Polynomial H = 1;
+                            X = 1;
+
+                            for (int r = 1; r <= ld; r++)
+                            {
+                                X = Polynomial.Modxn(X * Y, ld + 1);
+                                RF *= r;
+                                H += (X / RF);
+                            }
+
 
                         }
                     }
@@ -612,6 +649,23 @@ namespace CryptoUtils
                 if (gcd(c, n) == 1) r++;
 
             return r;
+        }
+
+        static void get_ck(int terms, Field a, Field b, Field[] c)
+        {
+            int k, h;
+            if (terms == 0) return;
+            c[0] = -a / 5;
+
+            if (terms == 1) return;
+            c[1] = -b / 7;
+
+            for (k = 3; k <= terms; k++)
+            {
+                c[k - 1] = 0;
+                for (h = 1; h <= k - 2; h++) c[k - 1] += c[h - 1] * c[k - 2 - h];
+                c[k - 1] *= ((Field)3 / (Field)((k - 2) * (2 * k + 3)));
+            }
         }
     }
 }
