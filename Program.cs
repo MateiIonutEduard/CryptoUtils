@@ -2,6 +2,7 @@ using CryptoUtils.Data;
 using CryptoUtils.Models;
 using CryptoUtils.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace CryptoUtils

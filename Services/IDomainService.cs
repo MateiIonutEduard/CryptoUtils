@@ -1,14 +1,12 @@
 ﻿using Eduard;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CryptoUtils.Data;
 
 namespace CryptoUtils.Services
 {
     public interface IDomainService
     {
+        Task<Demand[]> GetDemandsAsync();
+        Task<bool> SolveAsync(int demandId, DateTime solvedAt, int seconds);
         Task CreateDomainAsync(int demandId, DateTime solvedAt, int seconds, EllipticCurve curve);
     }
 }

@@ -13,8 +13,39 @@ namespace CryptoUtils.Services
     {
         readonly TrustGuardContext guardContext;
 
-        public DomainService(TrustGuardContext guardContext)
-        { this.guardContext = guardContext; }
+        public DomainService(IServiceScopeFactory scopeFactory)
+        {
+            guardContext = scopeFactory.CreateScope().ServiceProvider.GetRequiredService<TrustGuardContext>();
+        }
+
+        public async Task<Demand[]> GetDemandsAsync()
+        {
+            Demand[] demands = await guardContext.Demand
+                .Where(e => (e.IsSeen == null || (e.IsSeen != null && !e.IsSeen.Value)))
+                .ToArrayAsync();
+
+            /* non solved demands */
+            return demands;
+        }
+
+        public async Task<bool> SolveAsync(int demandId, DateTime solvedAt, int seconds)
+        {
+            Demand? demand = await guardContext.Demand
+                .FirstOrDefaultAsync(e => e.Id == demandId && (e.IsSeen == null || (e.IsSeen != null && !e.IsSeen.Value)));
+
+            /* demand exists, but was resolved */
+            if (demand != null)
+            {
+                demand.SolvedAt = solvedAt;
+                demand.TotalSeconds = seconds;
+
+                await guardContext.SaveChangesAsync();
+                return true;
+            }
+
+
+            return false;
+        }
 
         public async Task CreateDomainAsync(int demandId, DateTime solvedAt, int seconds, EllipticCurve curve)
         {
