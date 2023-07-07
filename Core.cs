@@ -12,6 +12,32 @@ namespace CryptoUtils
         static bool search = false;
         static bool escape = false;
 
+        static void mul(int p, int qnr, int x, int y, ref int a, ref int b)
+        {
+            int olda = a;
+            a = (a * x + b * y * qnr) % p;
+            b = (olda * y + b * x) % p;
+        }
+
+        static void quad(int p, int qnr, int x, int y, int e, ref int a, ref int b)
+        {
+            int k = e;
+            a = 1;
+            b = 0;
+            if (k == 0) return;
+
+            for (; ; )
+            {
+                if (k % 2 != 0)
+                    mul(p, qnr, x, y, ref a, ref b);
+
+                k >>= 1;
+
+                if (k == 0) return;
+                mul(p, qnr, x, y, ref x, ref y);
+            }
+        }
+
         static int gcd(int a, int b)
         {
             if (a == 1 || b == 1) return 1;
