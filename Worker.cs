@@ -28,7 +28,7 @@ namespace CryptoUtils
                     .GetDemandsAsync();
 
                 if (demands.Length == 0)
-                    _logger.LogInformation("There are not exists demands! {time}", DateTime.UtcNow);
+                    _logger.LogWarning("There are not exists demands! {time}", DateTime.UtcNow);
                 else
                 {
                     foreach(var demand in demands)
@@ -37,15 +37,19 @@ namespace CryptoUtils
                         Stopwatch sw = new Stopwatch();
                         sw.Start();
 
+                        _logger.LogInformation("Attempt to find strong elliptic curve domain parameters... {time}", now);
                         Core.SetDomain(appSettings.KeySize);
-                        EllipticCurve curve = Core.GenParameters(true);
+                        EllipticCurve curve = Core.GenParameters(appSettings.verbose);
                         sw.Stop();
 
-                        int seconds = (int)sw.Elapsed.TotalSeconds;
+                        double seconds = sw.Elapsed.TotalSeconds;
                         int demandId = demand.Id;
+                        sw.Reset();
 
                         /* save elliptic curve parameters */
-                        await domainService.CreateDomainAsync(demandId, now, seconds, curve);
+                        DateTime next = now.AddSeconds(seconds);
+                        _logger.LogInformation("New elliptic curve domain parameters were generated at {time}", next);
+                        await domainService.CreateDomainAsync(demandId, now, (int)seconds, curve);
                     }
                 }
 

@@ -10,5 +10,6 @@ namespace CryptoUtils.Models
     {
         public int Delay { get; set; }
         public int KeySize { get; set; }
+        public bool verbose { get; set; }
     }
 }
