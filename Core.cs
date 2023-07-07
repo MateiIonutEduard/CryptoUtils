@@ -33,11 +33,12 @@ namespace CryptoUtils
         public static EllipticCurve GetEllipticCurve()
         {
             BigInteger lim = 2;
-            BigInteger a = curve.a;
-            BigInteger b = curve.b;
+            BigInteger a = Core.curve.a;
+            BigInteger b = Core.curve.b;
 
-            BigInteger field = curve.field;
+            BigInteger field = Core.curve.field;
             BigInteger Q4 = (field >> 64).Sqrt();
+            BigInteger order = 0;
 
             if (field.GetBits() > 256)
                 Q4 = (field >> 72).Sqrt();
@@ -365,12 +366,116 @@ namespace CryptoUtils
                         PolyMod Ry, Ty;
                         int lower = 5, res = 0;
 
+                        for (int lambda = 1; lambda <= (p - 1) / 2; lambda++)
+                        {
+                            BigInteger inv = ((BigInteger)lambda).Inverse(p);
+                            tau = (lambda + field * inv) % p;
 
+                            BigInteger kv = (p + tau * tau - (4 * field) % p) % p;
+                            if (BigInteger.Jacobi(kv, p) != count) continue;
+
+                            for (int jj = lower; jj <= lambda + 2; jj++)
+                            {
+                                if (jj % 2 == 1)
+                                {
+                                    n = (jj - 1) / 2;
+                                    if (n % 2 == 0)
+                                        Pf[jj] = Pf[n + 2] * P3f[n] * Y4 - P3f[n + 1] * Pf[n - 1];
+                                    else
+                                        Pf[jj] = Pf[n + 2] * P3f[n] - Y4 * P3f[n + 1] * Pf[n - 1];
+                                }
+                                else
+                                {
+                                    n = jj / 2;
+                                    Pf[jj] = Pf[n] * (Pf[n + 2] * P2f[n - 1] - Pf[n - 2] * P2f[n + 1]) / 2;
+                                }
+
+                                P2f[jj] = Pf[jj] * Pf[jj];
+                                P3f[jj] = P2f[jj] * Pf[jj];
+                            }
+
+                            if (lambda + 3 > lower) lower = lambda + 3;
+
+                            if (lambda % 2 == 0)
+                            {
+                                Ry = (Pf[lambda + 2] * P2f[lambda - 1] - Pf[lambda - 2] * P2f[lambda + 1]) / 4;
+                                Ty = Y4 * YP * P3f[lambda];
+                            }
+                            else
+                            {
+                                if (lambda == 1) Ry = (Pf[lambda + 2] * P2f[lambda - 1] + P2f[lambda + 1]) / 4;
+                                else Ry = (Pf[lambda + 2] * P2f[lambda - 1] - Pf[lambda - 2] * P2f[lambda + 1]) / 4;
+                                Ty = YP * P3f[lambda];
+                            }
+
+                            if ((Ty - Ry) == 0) res = 1;
+                            if ((Ty + Ry) == 0) res = 2;
+
+                            if (res != 0)
+                            {
+                                if (res == 2)
+                                {
+                                    int tl = (p - (int)tau) % p;
+                                    if ((field + 1 - tl) % p == 0 && search)
+                                    {
+                                        escape = true;
+                                        break;
+                                    }
+
+                                    u.Add(tl);
+                                }
+                                else
+                                {
+                                    if((field + 1 - (int)tau) % p == 0 && search)
+                                    {
+                                        escape = true;
+                                        break;
+                                    }
+
+                                    u.Add((int)tau);
+                                }
+
+                                v.Add(p);
+                                break;
+                            }
+                        }
                     }
+
+                    if(escape)
+                    {
+                        b++; u.Clear();
+                        v.Clear(); break;
+                    }
+                }
+
+                BigInteger me = 2;
+                BigInteger te = 0;
+                BigInteger order_mod = 0;
+
+                for (int i = 1; i < v.Count; i++)
+                    me *= v[i];
+
+                for (int l = 0; l < u.Count; l++)
+                {
+                    BigInteger uv = me / v[l];
+                    BigInteger inv = uv.Inverse(v[l]);
+                    BigInteger acc = (u[l] * uv * inv) % me;
+                    te += acc;
+                    if (te >= me) te -= me;
+                }
+
+                order_mod = (field + 1 - te) % me;
+                order = Kangaroo(a, b, field, order_mod, me);
+
+                if(BigInteger.IsProbablePrime(order))
+                {
+                    found = true;
+                    break;
                 }
             }
 
-            return null;
+            EllipticCurve curve = new EllipticCurve(a, b, field, order);
+            return curve;
         }
 
         public static BigInteger Kangaroo(BigInteger a, BigInteger b, BigInteger p, BigInteger order, BigInteger ordermod)
