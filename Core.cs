@@ -224,6 +224,67 @@ namespace CryptoUtils
                         }
                         else
                         {
+                            Field g;
+                            el = p;
+                            lim *= p;
+
+                            count = (G.Degree == 1) ? 0 : 1;
+                            List<BigInteger> roots = new List<BigInteger>();
+                            Polynomial.Solve(G, ref roots);
+                            g = roots[count];
+
+                            dGx = ModularPolynomial.Diff_dx(Gl[index]);
+                            dGy = ModularPolynomial.Diff_dy(Gl[index]);
+                            dGxx = ModularPolynomial.Diff_dx(dGx);
+
+                            dGxy = ModularPolynomial.Diff_dx(dGy);
+                            dGyy = ModularPolynomial.Diff_dy(dGy);
+
+                            Eg = dGx.F(g.fn, j.fn);
+                            Ej = dGy.F(g.fn, j.fn);
+                            Exy = dGxy.F(g.fn, j.fn);
+
+                            Dg = g * Eg;
+                            Dj = j * Ej;
+
+                            deltal = delta * Field.Pow(g, 12 / s) / Field.Pow(el, 12);
+                            if (Dj == 0)
+                            {
+                                E4bl = E4b / (el * el);
+                                atilde = -3 * Field.Pow(el, 4) * E4bl;
+                                jl = Field.Pow(E4bl, 3) / deltal;
+                                btilde = 2 * Field.Pow(el, 6) * Field.Sqrt((jl - 1728) * deltal);
+                                p1 = 0;
+                            }
+                            else
+                            {
+                                E2bs = (-12 * E6b * Dj) / (s * E4b * Dg);
+
+                                gd = ((Field)(-s) / 12) * E2bs * g;
+                                jd = -E4b * E4b * E6b / delta;
+                                E0b = E6b / (E4b * E2bs);
+
+                                Dgd = gd * Eg + g * (gd * dGxx.F(g.fn, j.fn) + jd * Exy);
+                                Djd = jd * Ej + j * (jd * dGyy.F(g.fn, j.fn) + gd * Exy);
+
+                                E0bd = ((-s * Dgd) / 12 - E0b * Djd) / Dj;
+
+                                E4bl = (E4b - E2bs * (12 * E0bd / E0b + 6 * E4b * E4b / E6b - 4 * E6b / E4b) + E2bs * E2bs) / (el * el);
+
+                                jl = Field.Pow(E4bl, 3) / deltal;
+                                f = Field.Pow(el, s) / g; fd = s * E2bs * f / 12;
+
+                                Dgs = dGx.F(f.fn, jl.fn);
+                                Djs = dGy.F(f.fn, jl.fn);
+
+                                jld = -fd * Dgs / (el * Djs);
+                                E6bl = -E4bl * jld / jl;
+
+                                atilde = -3 * Field.Pow(el, 4) * E4bl;
+                                btilde = -2 * Field.Pow(el, 6) * E6bl;
+                                p1 = -el * E2bs / 2;
+                            }
+
 
                         }
                     }
