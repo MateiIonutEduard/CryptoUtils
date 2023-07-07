@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+#pragma warning disable
 
 namespace CryptoUtils
 {
@@ -27,6 +28,242 @@ namespace CryptoUtils
 
             search = Search;
             atkin = Atkin;
+        }
+
+        public static BigInteger Kangaroo(BigInteger a, BigInteger b, BigInteger p, BigInteger order, BigInteger ordermod)
+        {
+            ECPoint[] wild = new ECPoint[80], tame = new ECPoint[80];
+            BigInteger[] wdist = new BigInteger[80], tdist = new BigInteger[80];
+            int[] wname = new int[80], tname = new int[80];
+
+            EllipticCurve curve = new EllipticCurve(a, b, p, order);
+            ECPoint ZERO = ECPoint.POINT_INFINITY;
+            ECPoint[] K = new ECPoint[10], TE = new ECPoint[10];
+            ECPoint X, P, G, trap;
+
+            ECPoint[] table = new ECPoint[128];
+            BigInteger[] start = new BigInteger[10];
+            BigInteger txc, wxc, mean, leaps, upper, lower, middle, x, y, n, w, t, nrp;
+            int i, jj, j, m, sp = 1, nw, nt, cw, ct, k, distinguished, nbits;
+            BigInteger[] D = new BigInteger[10];
+
+            BigInteger s = 0, real_order;
+            BigInteger[] distance = new BigInteger[128];
+            bool bad, collision, abort;
+
+            Console.WriteLine("\nReleasing 5 Tame and 5 Wild Kangaroos!");
+
+            for (; ; )
+            {
+                // find a random point on the curve
+                P = curve.BasePoint;
+                lower = p + 1 - 2 * p.Sqrt() - 3; // lower limit of search
+                upper = p + 1 + 2 * p.Sqrt() + 3; // upper limit of search
+
+                w = 1 + (upper - lower) / ordermod;
+                leaps = w.Sqrt();
+
+                mean = (5 * leaps) >> 1;
+                nbits = (leaps >> 4).GetBits();
+                if (nbits > 30) nbits = 30;
+                distinguished = 1 << nbits;
+
+                for (s = 1, m = 1; ; m++)
+                { 
+                    /* find table size */
+                    distance[m - 1] = s * ordermod;
+                    s <<= 1;
+
+                    if ((2 * s / m) > mean)
+                        break;
+                }
+
+                table[0] = ECMath.Multiply(curve, ordermod, P);
+
+                for (i = 1; i < m; i++)
+                { // double last entry
+                    table[i] = table[i - 1];
+                    table[i] = ECMath.Add(curve, table[i], table[i - 1]);
+                }
+
+                middle = (upper + lower) >> 1;
+
+                if (ordermod > 1)
+                    middle += (ordermod + order - middle % ordermod);
+
+                for (i = 0; i < 5; i++) start[i] = middle + 13 * ordermod * i;
+                for (i = 0; i < 5; i++) start[i + 5] = 13 * ordermod * i;
+
+                ECPoint U = ECMath.Multiply(curve, middle, P);
+                ECPoint V = ECMath.Multiply(curve, start[6], P);
+                K[0] = U; K[5] = ECPoint.POINT_INFINITY;
+                for (i = 0; i < 10; i++) D[i] = 0;
+
+                for (i = 1; i < 5; i++)
+                {
+                    K[i] = ECMath.Add(curve, K[i - 1], V);
+                    K[i + 5] = ECMath.Add(curve, K[i + 4], V);
+                }
+
+                nt = 0; nw = 0; cw = 0; ct = 0;
+                collision = false; abort = false;
+
+                for (; ; )
+                {
+                    for (jj = 0; jj < 5; jj++)
+                    {
+                        // random function...
+                        txc = object.ReferenceEquals(K[jj].GetAffineX(), null) ? 0 : K[jj].GetAffineX();
+                        i = (int)(txc % m);
+
+                        if (txc % distinguished == 0)
+                        {
+                            if (nt >= 80)
+                            {
+                                abort = true;
+                                break;
+                            }
+
+                            Console.Write(".");
+
+                            tame[nt] = K[jj];
+                            tdist[nt] = D[jj];
+                            tname[nt] = jj;
+
+                            for (k = 0; k < nw; k++)
+                            {
+                                if (wild[k] == tame[nt])
+                                {
+                                    ct = nt; cw = k;
+                                    collision = true;
+                                    break;
+                                }
+                            }
+
+                            if (collision) break;
+                            nt++;
+                        }
+
+                        D[jj] += distance[i];
+                        TE[jj] = table[i];
+                    }
+
+                    if (collision || abort) break;
+
+                    for (jj = 5; jj < 10; jj++)
+                    {
+                        // random function...
+                        wxc = object.ReferenceEquals(K[jj].GetAffineX(), null) ? 0 : K[jj].GetAffineX();
+                        j = (int)(wxc % m);
+
+                        if (wxc % distinguished == 0)
+                        {
+                            if (nw >= 80)
+                            {
+                                abort = true;
+                                break;
+                            }
+
+                            Console.Write(".");
+
+                            wild[nw] = K[jj];
+                            wdist[nw] = D[jj];
+                            wname[nw] = jj;
+
+                            for (k = 0; k < nt; k++)
+                            {
+                                if (tame[k] == wild[nw])
+                                {
+                                    ct = k; cw = nw;
+                                    collision = true;
+                                    break;
+                                }
+                            }
+
+                            if (collision) break;
+                            nw++;
+                        }
+
+                        D[jj] += distance[j];
+                        TE[jj] = table[j];
+                    }
+
+                    if (collision || abort) break;
+
+                    for (int l = 0; l < 10; l++)
+                        K[l] = ECMath.Add(curve, K[l], TE[l]);
+                }
+
+                if (abort) continue;
+                nrp = start[tname[ct]] - start[wname[cw]] + tdist[ct] - wdist[cw];
+                G = P;
+
+                G = ECMath.Multiply(curve, nrp, G);
+                if (G != ZERO) continue;
+                if (BigInteger.IsProbablePrime(nrp)) break;
+                real_order = nrp; i = 0;
+                Sieve sieve = new Sieve(256);
+
+                for (; ; )
+                {
+                    if (i >= sieve.Count) break;
+                    sp = sieve[i];
+
+                    if (real_order % sp == 0)
+                    {
+                        G = P;
+                        G = ECMath.Multiply(curve, real_order / sp, G);
+
+                        if (G == ZERO)
+                        {
+                            real_order /= sp;
+                            continue;
+                        }
+                    }
+
+                    i++;
+                }
+
+                if (real_order <= 4 * p.Sqrt()) continue;
+                real_order = nrp;
+
+                for (i = 0; i < sieve.Count; i++)
+                {
+                    while (real_order % sp == 0)
+                        real_order /= sp;
+                }
+
+                if (real_order == 1) break;
+
+                if (BigInteger.IsProbablePrime(real_order))
+                {
+                    G = P;
+                    G = ECMath.Multiply(curve, nrp / real_order, G);
+
+                    if (G == ZERO) continue;
+                    else break;
+                }
+
+                bad = false;
+
+                for (i = 0; i < 20; i++)
+                {
+                    P = curve.BasePoint;
+                    G = P;
+                    G = ECMath.Multiply(curve, nrp, G);
+
+                    if (G != ZERO)
+                    {
+                        bad = true;
+                        break;
+                    }
+                }
+
+                if (bad) continue;
+                break;
+            }
+
+            return nrp;
         }
 
         static void ReadModularPolynomialsByLimit(BigInteger field)
