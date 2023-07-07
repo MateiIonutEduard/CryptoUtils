@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Eduard;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,7 +11,16 @@ namespace CryptoUtils
     {
         static bool atkin = false;
         static bool search = false;
+
         static bool escape = false;
+        static EllipticCurve curve;
+
+        public static void GenDomain(int bits, bool Search, bool Atkin=false)
+        {
+            curve = new EllipticCurve(bits);
+            search = Search;
+            atkin = Atkin;
+        }
 
         static void mul(int p, int qnr, int x, int y, ref int a, ref int b)
         {
