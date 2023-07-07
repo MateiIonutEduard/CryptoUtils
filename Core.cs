@@ -32,305 +32,344 @@ namespace CryptoUtils
 
         public static EllipticCurve GetEllipticCurve()
         {
-            if(search)
+            BigInteger lim = 2;
+            BigInteger a = curve.a;
+            BigInteger b = curve.b;
+
+            BigInteger field = curve.field;
+            BigInteger Q4 = (field >> 64).Sqrt();
+
+            if (field.GetBits() > 256)
+                Q4 = (field >> 72).Sqrt();
+
+            List<int> u = new List<int>();
+            List<int> v = new List<int>();
+
+            bool found = false;
+            int index = 0;
+
+            while (!found)
             {
-                BigInteger lim = 2;
-                BigInteger a = curve.a;
-                BigInteger b = curve.b;
+                Util.modulo(field);
+                Field.modulo(field);
+                Polynomial.SetField(field);
 
-                BigInteger field = curve.field;
-                BigInteger Q4 = (field >> 64).Sqrt();
+                Polynomial X = new Polynomial(1, 0);
+                Polynomial Y2 = new Polynomial(1, 0, a, b);
 
-                if (field.GetBits() > 256) 
-                    Q4 = (field >> 72).Sqrt();
+                Polynomial XP = Polynomial.Pow(X, field, Y2);
+                Polynomial pp = Polynomial.Gcd(XP - X, Y2);
 
-                List<int> u = new List<int>();
-                List<int> v = new List<int>();
+                int t = (pp == 1) ? 1 : 0;
 
-                bool found = false;
-                int index = 0;
-
-                while(!found)
+                if (t == 0)
                 {
-                    Util.modulo(field);
-                    Field.modulo(field);
-                    Polynomial.SetField(field);
+                    b++;
+                    continue;
+                }
 
-                    Polynomial X = new Polynomial(1, 0);
-                    Polynomial Y2 = new Polynomial(1, 0, a, b);
+                u.Add(t);
+                v.Add(2);
 
-                    Polynomial XP = Polynomial.Pow(X, field, Y2);
-                    Polynomial pp = Polynomial.Gcd(XP - X, Y2);
+                Field delta = -16 * (4 * a * a * a + 27 * b * b);
+                Field j = (-1728 * 64 * a * a * a) / delta;
+                Field deltal = 0;
 
-                    int t = (pp == 1) ? 1 : 0;
+                BigInteger tau = 0;
 
-                    if(t == 0)
+                ModularPolynomial dGx, dGy, dGxx, dGxy, dGyy;
+                Field Eg, Ej, Exy, Dg, Dj, E4b, E6b, p1;
+                Field atilde, btilde, jl, E4bl, E2bs, gd, jd, E0b;
+                Field Dgd, Djd, E0bd, f, fd, Dgs, Djs, jld, E6bl;
+                int s, el, count;
+
+                E4b = (Field)(-a) / 3;
+                E6b = (Field)(-b) / 2;
+                delta = (E4b * E4b * E4b - E6b * E6b) / 1728;
+
+                while (index < Gl.Count && lim < Q4)
+                {
+                    int p = prime[index];
+
+                    for (s = 1; ; s++)
+                        if (s * (p - 1) % 12 == 0) break;
+
+                    Polynomial mod = Gl[index].F((BigInteger)j);
+                    XP = Polynomial.Pow(X, field, mod);
+
+                    Polynomial G = Polynomial.Gcd(XP - X, mod);
+                    if (G.Degree == p + 1) continue;
+
+                    if (G.Degree == 0)
                     {
-                        b++;
+                        // Atkin case
+                        PolyMod.SetModulus(mod);
+                        PolyMod[] m = new PolyMod[p + 1];
+                        int max_r = p + 1, l = 0, r = 2;
+
+                        m[0] = XP;
+                        bool useful = false;
+
+                        int k = (int)(field % p);
+                        m[1] = PolyMod.Compose(m[0], m[0]);
+                        if (!atkin) max_r = 2;
+
+                        // Compute Frobenius map
+                        for (r = 2; r <= max_r; r++)
+                        {
+                            PolyMod C = 0;
+                            int js = (p + 1) / r;
+                            int sym = BigInteger.Jacobi(k, p);
+
+                            if ((p + 1) % r != 0) continue;
+                            if (js % 2 == 0 && sym == -1) continue;
+                            if (js % 2 == 1 && sym == 1) continue;
+
+                            int kk = r, i = 0;
+                            bool first = true;
+
+                            while (kk > 0)
+                            {
+                                if ((kk & 1) == 1)
+                                {
+                                    if (first) C = m[i];
+                                    else C = PolyMod.Compose(m[i], C);
+                                    first = false;
+                                }
+
+                                kk >>= 1;
+                                if (kk == 0) break;
+                                i++;
+
+                                if (i > l)
+                                {
+                                    m[i] = PolyMod.Compose(m[i - 1], m[i - 1]);
+                                    l = i;
+                                }
+                            }
+
+                            PolyMod ok = C - X;
+
+                            if (ok == 0)
+                            {
+                                useful = true;
+                                break;
+                            }
+                        }
+
+                        if (!useful) continue;
+                        int ax = 0, by = 0, candidates, gx, gy, ord, qnr = 2;
+                        bool gen = false;
+
+                        while (BigInteger.Jacobi(qnr, p) != -1)
+                            qnr++;
+
+                        ord = p * p - 1;
+                        gy = 1;
+
+                        for (gx = 1; gx < p; gx++)
+                        {
+                            gen = true;
+
+                            for (int jj = 2; jj <= ord / 2; jj++)
+                            {
+                                if (ord % jj != 0) continue;
+                                quad(p, qnr, gx, gy, ord / jj, ref ax, ref by);
+
+                                if (ax == 1 && by == 0)
+                                {
+                                    gen = false;
+                                    break;
+                                }
+                            }
+
+                            if (gen) break;
+                        }
+
+                        candidates = 0;
+                        lim *= p;
+
+                        for (int jj = 1; jj < r; jj++)
+                        {
+                            if (jj > 1 && gcd(jj, r) != 1) continue;
+                            quad(p, qnr, gx, gy, jj * ord / r, ref ax, ref by);
+
+                            BigInteger two = 2;
+                            tau = ((ax + 1) * k * (int)two.Inverse(p)) % p;
+
+                            if (tau == 0)
+                            {
+                                if ((field + 1 - tau) % p == 0)
+                                {
+                                    if (search)
+                                        escape = true;
+                                }
+
+                                u.Add((int)tau);
+                                v.Add(p);
+                                break;
+                            }
+                            else if (BigInteger.Jacobi(tau, p) == 1)
+                            {
+                                tau = Eduard.Core.sqrmp((uint)tau, (uint)p);
+                                tau = (2 * tau) % p;
+                                if (candidates == phi(r)) break;
+                            }
+                        }
+
+                        if (escape) break;
                         continue;
                     }
-
-                    u.Add(t);
-                    v.Add(2);
-
-                    Field delta = -16 * (4 * a * a * a + 27 * b * b);
-                    Field j = (-1728 * 64 * a * a * a) / delta;
-                    Field deltal = 0;
-
-                    BigInteger tau = 0;
-
-                    ModularPolynomial dGx, dGy, dGxx, dGxy, dGyy;
-                    Field Eg, Ej, Exy, Dg, Dj, E4b, E6b, p1;
-                    Field atilde, btilde, jl, E4bl, E2bs, gd, jd, E0b;
-                    Field Dgd, Djd, E0bd, f, fd, Dgs, Djs, jld, E6bl;
-                    int s, el, count;
-
-                    E4b = (Field)(-a) / 3;
-                    E6b = (Field)(-b) / 2;
-                    delta = (E4b * E4b * E4b - E6b * E6b) / 1728;
-
-                    while(index < Gl.Count && lim < Q4)
+                    else
                     {
-                        int p = prime[index];
+                        Field g;
+                        el = p;
+                        lim *= p;
 
-                        for (s = 1; ; s++)
-                            if (s * (p - 1) % 12 == 0) break;
+                        count = (G.Degree == 1) ? 0 : 1;
+                        List<BigInteger> roots = new List<BigInteger>();
+                        Polynomial.Solve(G, ref roots);
+                        g = roots[count];
 
-                        Polynomial mod = Gl[index].F((BigInteger)j);
-                        XP = Polynomial.Pow(X, field, mod);
+                        dGx = ModularPolynomial.Diff_dx(Gl[index]);
+                        dGy = ModularPolynomial.Diff_dy(Gl[index]);
+                        dGxx = ModularPolynomial.Diff_dx(dGx);
 
-                        Polynomial G = Polynomial.Gcd(XP - X, mod);
-                        if (G.Degree == p + 1) continue;
+                        dGxy = ModularPolynomial.Diff_dx(dGy);
+                        dGyy = ModularPolynomial.Diff_dy(dGy);
 
-                        if(G.Degree == 0)
+                        Eg = dGx.F(g.fn, j.fn);
+                        Ej = dGy.F(g.fn, j.fn);
+                        Exy = dGxy.F(g.fn, j.fn);
+
+                        Dg = g * Eg;
+                        Dj = j * Ej;
+
+                        deltal = delta * Field.Pow(g, 12 / s) / Field.Pow(el, 12);
+                        if (Dj == 0)
                         {
-                            // Atkin case
-                            PolyMod.SetModulus(mod);
-                            PolyMod[] m = new PolyMod[p + 1];
-                            int max_r = p + 1, l = 0, r = 2;
-
-                            m[0] = XP;
-                            bool useful = false;
-
-                            int k = (int)(field % p);
-                            m[1] = PolyMod.Compose(m[0], m[0]);
-                            if (!atkin) max_r = 2;
-
-                            // Compute Frobenius map
-                            for (r = 2; r <= max_r; r++)
-                            {
-                                PolyMod C = 0;
-                                int js = (p + 1) / r;
-                                int sym = BigInteger.Jacobi(k, p);
-
-                                if ((p + 1) % r != 0) continue;
-                                if (js % 2 == 0 && sym == -1) continue;
-                                if (js % 2 == 1 && sym == 1) continue;
-
-                                int kk = r, i = 0;
-                                bool first = true;
-
-                                while (kk > 0)
-                                {
-                                    if ((kk & 1) == 1)
-                                    {
-                                        if (first) C = m[i];
-                                        else C = PolyMod.Compose(m[i], C);
-                                        first = false;
-                                    }
-
-                                    kk >>= 1;
-                                    if (kk == 0) break;
-                                    i++;
-
-                                    if (i > l)
-                                    {
-                                        m[i] = PolyMod.Compose(m[i - 1], m[i - 1]);
-                                        l = i;
-                                    }
-                                }
-
-                                PolyMod ok = C - X;
-
-                                if (ok == 0)
-                                {
-                                    useful = true;
-                                    break;
-                                }
-                            }
-
-                            if (!useful) continue;
-                            int ax = 0, by = 0, candidates, gx, gy, ord, qnr = 2;
-                            bool gen = false;
-
-                            while (BigInteger.Jacobi(qnr, p) != -1)
-                                qnr++;
-
-                            ord = p * p - 1;
-                            gy = 1;
-
-                            for (gx = 1; gx < p; gx++)
-                            {
-                                gen = true;
-
-                                for (int jj = 2; jj <= ord / 2; jj++)
-                                {
-                                    if (ord % jj != 0) continue;
-                                    quad(p, qnr, gx, gy, ord / jj, ref ax, ref by);
-
-                                    if (ax == 1 && by == 0)
-                                    {
-                                        gen = false;
-                                        break;
-                                    }
-                                }
-
-                                if (gen) break;
-                            }
-
-                            candidates = 0;
-                            lim *= p;
-
-                            for (int jj = 1; jj < r; jj++)
-                            {
-                                if (jj > 1 && gcd(jj, r) != 1) continue;
-                                quad(p, qnr, gx, gy, jj * ord / r, ref ax, ref by);
-
-                                BigInteger two = 2;
-                                tau = ((ax + 1) * k * (int)two.Inverse(p)) % p;
-
-                                if (tau == 0)
-                                {
-                                    if ((field + 1 - tau) % p == 0)
-                                    {
-                                        if (search)
-                                            escape = true;
-                                    }
-
-                                    u.Add((int)tau);
-                                    v.Add(p);
-                                    break;
-                                }
-                                else if (BigInteger.Jacobi(tau, p) == 1)
-                                {
-                                    tau = Eduard.Core.sqrmp((uint)tau, (uint)p);
-                                    tau = (2 * tau) % p;
-                                    if (candidates == phi(r)) break;
-                                }
-                            }
-
-                            if (escape) break;
-                            continue;
+                            E4bl = E4b / (el * el);
+                            atilde = -3 * Field.Pow(el, 4) * E4bl;
+                            jl = Field.Pow(E4bl, 3) / deltal;
+                            btilde = 2 * Field.Pow(el, 6) * Field.Sqrt((jl - 1728) * deltal);
+                            p1 = 0;
                         }
                         else
                         {
-                            Field g;
-                            el = p;
-                            lim *= p;
+                            E2bs = (-12 * E6b * Dj) / (s * E4b * Dg);
 
-                            count = (G.Degree == 1) ? 0 : 1;
-                            List<BigInteger> roots = new List<BigInteger>();
-                            Polynomial.Solve(G, ref roots);
-                            g = roots[count];
+                            gd = ((Field)(-s) / 12) * E2bs * g;
+                            jd = -E4b * E4b * E6b / delta;
+                            E0b = E6b / (E4b * E2bs);
 
-                            dGx = ModularPolynomial.Diff_dx(Gl[index]);
-                            dGy = ModularPolynomial.Diff_dy(Gl[index]);
-                            dGxx = ModularPolynomial.Diff_dx(dGx);
+                            Dgd = gd * Eg + g * (gd * dGxx.F(g.fn, j.fn) + jd * Exy);
+                            Djd = jd * Ej + j * (jd * dGyy.F(g.fn, j.fn) + gd * Exy);
 
-                            dGxy = ModularPolynomial.Diff_dx(dGy);
-                            dGyy = ModularPolynomial.Diff_dy(dGy);
+                            E0bd = ((-s * Dgd) / 12 - E0b * Djd) / Dj;
 
-                            Eg = dGx.F(g.fn, j.fn);
-                            Ej = dGy.F(g.fn, j.fn);
-                            Exy = dGxy.F(g.fn, j.fn);
+                            E4bl = (E4b - E2bs * (12 * E0bd / E0b + 6 * E4b * E4b / E6b - 4 * E6b / E4b) + E2bs * E2bs) / (el * el);
 
-                            Dg = g * Eg;
-                            Dj = j * Ej;
+                            jl = Field.Pow(E4bl, 3) / deltal;
+                            f = Field.Pow(el, s) / g; fd = s * E2bs * f / 12;
 
-                            deltal = delta * Field.Pow(g, 12 / s) / Field.Pow(el, 12);
-                            if (Dj == 0)
-                            {
-                                E4bl = E4b / (el * el);
-                                atilde = -3 * Field.Pow(el, 4) * E4bl;
-                                jl = Field.Pow(E4bl, 3) / deltal;
-                                btilde = 2 * Field.Pow(el, 6) * Field.Sqrt((jl - 1728) * deltal);
-                                p1 = 0;
-                            }
-                            else
-                            {
-                                E2bs = (-12 * E6b * Dj) / (s * E4b * Dg);
+                            Dgs = dGx.F(f.fn, jl.fn);
+                            Djs = dGy.F(f.fn, jl.fn);
 
-                                gd = ((Field)(-s) / 12) * E2bs * g;
-                                jd = -E4b * E4b * E6b / delta;
-                                E0b = E6b / (E4b * E2bs);
+                            jld = -fd * Dgs / (el * Djs);
+                            E6bl = -E4bl * jld / jl;
 
-                                Dgd = gd * Eg + g * (gd * dGxx.F(g.fn, j.fn) + jd * Exy);
-                                Djd = jd * Ej + j * (jd * dGyy.F(g.fn, j.fn) + gd * Exy);
-
-                                E0bd = ((-s * Dgd) / 12 - E0b * Djd) / Dj;
-
-                                E4bl = (E4b - E2bs * (12 * E0bd / E0b + 6 * E4b * E4b / E6b - 4 * E6b / E4b) + E2bs * E2bs) / (el * el);
-
-                                jl = Field.Pow(E4bl, 3) / deltal;
-                                f = Field.Pow(el, s) / g; fd = s * E2bs * f / 12;
-
-                                Dgs = dGx.F(f.fn, jl.fn);
-                                Djs = dGy.F(f.fn, jl.fn);
-
-                                jld = -fd * Dgs / (el * Djs);
-                                E6bl = -E4bl * jld / jl;
-
-                                atilde = -3 * Field.Pow(el, 4) * E4bl;
-                                btilde = -2 * Field.Pow(el, 6) * E6bl;
-                                p1 = -el * E2bs / 2;
-                            }
-
-                            int ld = (p - 1) / 2;
-                            int ld1 = (p - 3) / 2;
-
-                            Field[] cf = new Field[ld1];
-                            get_ck(ld1, a, b, cf);
-
-                            Polynomial[] WP = new Polynomial[ld];
-                            WP[0] = new Polynomial(ld);
-                            WP[0].coeffs[0] = 1;
-
-                            for (int k = ld1; k > 0; k--)
-                                WP[0].coeffs[k + 1] = cf[k - 1].fn;
-
-                            for (int k = 1; k < ld; k++)
-                                WP[k] = Polynomial.Modxn(WP[k - 1] * WP[0], ld + 1);
-
-                            Field[] cft = new Field[ld1];
-                            get_ck(ld1, atilde, btilde, cft);
-
-                            Polynomial Y = new Polynomial(ld);
-                            Y.coeffs[0] = 0;
-                            Y.coeffs[1] = (BigInteger)(-p1);
-
-                            for (int k = ld1; k > 0; k--)
-                                Y.coeffs[k + 1] = (BigInteger)((p * cf[k - 1] - cft[k - 1]) / ((Field)(2 * k + 1) * (2 * k + 2)));
-
-                            BigInteger RF = 1;
-                            Polynomial H = 1;
-                            X = 1;
-
-                            for (int r = 1; r <= ld; r++)
-                            {
-                                X = Polynomial.Modxn(X * Y, ld + 1);
-                                RF *= r;
-                                H += (X / RF);
-                            }
-
-
+                            atilde = -3 * Field.Pow(el, 4) * E4bl;
+                            btilde = -2 * Field.Pow(el, 6) * E6bl;
+                            p1 = -el * E2bs / 2;
                         }
+
+                        int ld = (p - 1) / 2;
+                        int ld1 = (p - 3) / 2;
+
+                        Field[] cf = new Field[ld1];
+                        get_ck(ld1, a, b, cf);
+
+                        Polynomial[] WP = new Polynomial[ld];
+                        WP[0] = new Polynomial(ld);
+                        WP[0].coeffs[0] = 1;
+
+                        for (int k = ld1; k > 0; k--)
+                            WP[0].coeffs[k + 1] = cf[k - 1].fn;
+
+                        for (int k = 1; k < ld; k++)
+                            WP[k] = Polynomial.Modxn(WP[k - 1] * WP[0], ld + 1);
+
+                        Field[] cft = new Field[ld1];
+                        get_ck(ld1, atilde, btilde, cft);
+
+                        Polynomial Y = new Polynomial(ld);
+                        Y.coeffs[0] = 0;
+                        Y.coeffs[1] = (BigInteger)(-p1);
+
+                        for (int k = ld1; k > 0; k--)
+                            Y.coeffs[k + 1] = (BigInteger)((p * cf[k - 1] - cft[k - 1]) / ((Field)(2 * k + 1) * (2 * k + 2)));
+
+                        BigInteger RF = 1;
+                        Polynomial H = 1;
+                        X = 1;
+
+                        for (int r = 1; r <= ld; r++)
+                        {
+                            X = Polynomial.Modxn(X * Y, ld + 1);
+                            RF *= r;
+                            H += (X / RF);
+                        }
+
+                        BigInteger ad = 1;
+                        Polynomial Fl = new Polynomial(ld);
+                        Fl.coeffs[ld] = 1;
+
+                        for (int k = ld - 1; k >= 0; k--)
+                        {
+                            H -= ad * WP[k];
+                            H = Polynomial.Divxn(H, 1);
+                            ad = H.coeffs[0];
+                            Fl.coeffs[k] = ad;
+                        }
+
+                        X = new Polynomial(1, 0);
+                        XP = Polynomial.Pow(X, field, Fl);
+                        Polynomial gl = Polynomial.Gcd(XP - X, Fl);
+
+                        PolyMod.SetModulus(Fl);
+                        PolyMod Y4 = Y2 * Y2;
+                        PolyMod YP = PolyMod.Pow(Y2, (field - 1) / 2);
+
+                        PolyMod[] Pf = new PolyMod[300];
+                        PolyMod[] P2f = new PolyMod[300];
+                        PolyMod[] P3f = new PolyMod[300];
+                        Pf[0] = 0; Pf[1] = 1; Pf[2] = 2;
+
+                        P2f[0] = 0; P3f[0] = 0;
+                        P2f[1] = 1; P3f[1] = 1;
+                        P2f[2] = Pf[2] * Pf[2];
+                        P3f[2] = P2f[2] * Pf[2];
+
+                        Pf[3] = new Polynomial(3, 0, 6 * a, 12 * b, -(a * a));
+                        Pf[4] = new Polynomial(4, 0, 20 * a, 80 * b, -20 * (a * a), -16 * (a * b), -4 * (8 * b * b + a * a * a));
+
+                        P2f[3] = Pf[3] * Pf[3];
+                        P3f[3] = P2f[3] * Pf[3];
+
+                        P2f[4] = Pf[4] * Pf[4];
+                        P3f[4] = P2f[4] * Pf[4];
+
+                        int n = 0;
+                        BigInteger pmodl = field % p;
+
+                        PolyMod Ry, Ty;
+                        int lower = 5, res = 0;
+
+
                     }
                 }
             }
-            else
-            {
 
-            }
             return null;
         }
 
