@@ -1,3 +1,5 @@
+using Eduard;
+
 namespace CryptoUtils
 {
     public class Worker : BackgroundService
