@@ -30,6 +30,67 @@ namespace CryptoUtils
             atkin = Atkin;
         }
 
+        public static EllipticCurve GetEllipticCurve()
+        {
+            if(search)
+            {
+                BigInteger lim = 2;
+                BigInteger a = curve.a;
+                BigInteger b = curve.b;
+
+                BigInteger field = curve.field;
+                BigInteger Q4 = (field >> 64).Sqrt();
+
+                if (field.GetBits() > 256) 
+                    Q4 = (field >> 72).Sqrt();
+
+                List<int> u = new List<int>();
+                List<int> v = new List<int>();
+                bool found = false;
+
+                while(!found)
+                {
+                    Util.modulo(field);
+                    Field.modulo(field);
+                    Polynomial.SetField(field);
+
+                    Polynomial X = new Polynomial(1, 0);
+                    Polynomial Y2 = new Polynomial(1, 0, a, b);
+
+                    Polynomial XP = Polynomial.Pow(X, field, Y2);
+                    Polynomial pp = Polynomial.Gcd(XP - X, Y2);
+
+                    int t = (pp == 1) ? 1 : 0;
+
+                    if(t == 0)
+                    {
+                        b++;
+                        continue;
+                    }
+
+                    u.Add(t);
+                    v.Add(2);
+
+                    Field delta = -16 * (4 * a * a * a + 27 * b * b);
+                    Field j = (-1728 * 64 * a * a * a) / delta;
+                    Field deltal = 0;
+
+                    BigInteger tau = 0;
+
+                    ModularPolynomial Gl, dGx, dGy, dGxx, dGxy, dGyy;
+                    Field Eg, Ej, Exy, Dg, Dj, E4b, E6b, p1;
+                    Field atilde, btilde, jl, E4bl, E2bs, gd, jd, E0b;
+                    Field Dgd, Djd, E0bd, f, fd, Dgs, Djs, jld, E6bl;
+                    int s, el, count;
+                }
+            }
+            else
+            {
+
+            }
+            return null;
+        }
+
         public static BigInteger Kangaroo(BigInteger a, BigInteger b, BigInteger p, BigInteger order, BigInteger ordermod)
         {
             ECPoint[] wild = new ECPoint[80], tame = new ECPoint[80];
