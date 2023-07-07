@@ -15,36 +15,19 @@ namespace CryptoUtils.Services
 
         public DomainService(IServiceScopeFactory scopeFactory)
         {
-            guardContext = scopeFactory.CreateScope().ServiceProvider.GetRequiredService<TrustGuardContext>();
+            guardContext = scopeFactory.CreateScope()
+                .ServiceProvider.GetRequiredService<TrustGuardContext>();
         }
 
         public async Task<Demand[]> GetDemandsAsync()
         {
             Demand[] demands = await guardContext.Demand
                 .Where(e => (e.IsSeen == null || (e.IsSeen != null && !e.IsSeen.Value)))
+                .OrderBy(e => e.IssuedAt)
                 .ToArrayAsync();
 
             /* non solved demands */
             return demands;
-        }
-
-        public async Task<bool> SolveAsync(int demandId, DateTime solvedAt, int seconds)
-        {
-            Demand? demand = await guardContext.Demand
-                .FirstOrDefaultAsync(e => e.Id == demandId && (e.IsSeen == null || (e.IsSeen != null && !e.IsSeen.Value)));
-
-            /* demand exists, but was resolved */
-            if (demand != null)
-            {
-                demand.SolvedAt = solvedAt;
-                demand.TotalSeconds = seconds;
-
-                await guardContext.SaveChangesAsync();
-                return true;
-            }
-
-
-            return false;
         }
 
         public async Task CreateDomainAsync(int demandId, DateTime solvedAt, int seconds, EllipticCurve curve)
@@ -53,7 +36,7 @@ namespace CryptoUtils.Services
             ECPoint basePoint = curve.BasePoint;
 
             Demand? demand = await guardContext.Demand
-                .FirstOrDefaultAsync(e => e.Id == demandId);
+                .FirstOrDefaultAsync(e => e.Id == demandId && (e.IsSeen == null || (e.IsSeen != null && !e.IsSeen.Value)));
 
             /* if not null, update demand */
             if(demand != null)

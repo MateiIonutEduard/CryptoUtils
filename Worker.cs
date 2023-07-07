@@ -3,6 +3,7 @@ using CryptoUtils.Models;
 using CryptoUtils.Services;
 using Eduard;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace CryptoUtils
 {
@@ -23,7 +24,31 @@ namespace CryptoUtils
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                Demand[] demands = await domainService
+                    .GetDemandsAsync();
+
+                if (demands.Length == 0)
+                    _logger.LogInformation("There are not exists demands! {time}", DateTime.UtcNow);
+                else
+                {
+                    foreach(var demand in demands)
+                    {
+                        DateTime now = DateTime.UtcNow;
+                        Stopwatch sw = new Stopwatch();
+                        sw.Start();
+
+                        Core.SetDomain(appSettings.KeySize);
+                        EllipticCurve curve = Core.GenParameters(true);
+                        sw.Stop();
+
+                        int seconds = (int)sw.Elapsed.TotalSeconds;
+                        int demandId = demand.Id;
+
+                        /* save elliptic curve parameters */
+                        await domainService.CreateDomainAsync(demandId, now, seconds, curve);
+                    }
+                }
+
                 await Task.Delay(appSettings.Delay, stoppingToken);
             }
         }

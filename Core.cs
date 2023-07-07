@@ -39,21 +39,21 @@ namespace CryptoUtils
             ReadModularPolynomialsByLimit(curve.field);
         }
 
-        public static EllipticCurve GenParameters()
+        public static EllipticCurve GenParameters(bool verbose=false)
         {
-            BigInteger order = Cardinality();
+            BigInteger order = Cardinality(verbose);
 
             while(order == -1)
             {
                 b++;
-                order = Cardinality();
+                order = Cardinality(verbose);
             }
 
             EllipticCurve curve = new EllipticCurve(a, b, field, order);
             return curve;
         }
 
-        public static BigInteger Cardinality()
+        private static BigInteger Cardinality(bool verbose)
         {
             BigInteger lim = 2;
             BigInteger Q4 = (field >> 64).Sqrt();
@@ -78,7 +78,7 @@ namespace CryptoUtils
             u.Add(t);
             v.Add(2);
 
-            Console.WriteLine($"NP = {(field + 1 - t) % 2} mod {2}");
+            if(verbose) Console.WriteLine($"NP = {(field + 1 - t) % 2} mod {2}");
 
             if ((field + 1 - t) % 2 == 0)
                 return -1;
@@ -216,7 +216,7 @@ namespace CryptoUtils
                             if ((field + 1 - tau) % p == 0)
                                 return -1;
 
-                            Console.WriteLine($"NP = {(field + 1 - (int)tau) % p} mod {p}");
+                            if(verbose) Console.WriteLine($"NP = {(field + 1 - (int)tau) % p} mod {p}");
                             u.Add((int)tau);
                             v.Add(p);
                             break;
@@ -430,7 +430,7 @@ namespace CryptoUtils
                         else u.Add((int)tau);
 
                         v.Add(p);
-                        Console.WriteLine($"NP = {(field + 1 - u[u.Count - 1]) % p} mod {p}");
+                        if(verbose) Console.WriteLine($"NP = {(field + 1 - u[u.Count - 1]) % p} mod {p}");
                         if ((field + 1 - u[u.Count - 1]) % p == 0) return -1;
                         break;
                     }
@@ -454,13 +454,13 @@ namespace CryptoUtils
             }
 
             order_mod = (field + 1 - te) % me;
-            BigInteger order = Kangaroo(a, b, field, order_mod, me);
+            BigInteger order = Kangaroo(verbose, a, b, field, order_mod, me);
 
             if (!BigInteger.IsProbablePrime(order)) return -1;
             return order;
         }
 
-        public static BigInteger Kangaroo(BigInteger a, BigInteger b, BigInteger p, BigInteger order, BigInteger ordermod)
+        public static BigInteger Kangaroo(bool verbose, BigInteger a, BigInteger b, BigInteger p, BigInteger order, BigInteger ordermod)
         {
             ECPoint[] wild = new ECPoint[80], tame = new ECPoint[80];
             BigInteger[] wdist = new BigInteger[80], tdist = new BigInteger[80];
@@ -481,7 +481,7 @@ namespace CryptoUtils
             BigInteger[] distance = new BigInteger[128];
             bool bad, collision, abort;
 
-            Console.WriteLine("\nReleasing 5 Tame and 5 Wild Kangaroos!");
+            if(verbose) Console.WriteLine("\nReleasing 5 Tame and 5 Wild Kangaroos!");
 
             for (; ; )
             {
@@ -554,7 +554,7 @@ namespace CryptoUtils
                                 break;
                             }
 
-                            Console.Write(".");
+                            if(verbose) Console.Write(".");
 
                             tame[nt] = K[jj];
                             tdist[nt] = D[jj];
@@ -594,7 +594,7 @@ namespace CryptoUtils
                                 break;
                             }
 
-                            Console.Write(".");
+                            if(verbose) Console.Write(".");
 
                             wild[nw] = K[jj];
                             wdist[nw] = D[jj];
@@ -693,7 +693,7 @@ namespace CryptoUtils
                 break;
             }
 
-            Console.WriteLine();
+            if(verbose) Console.WriteLine();
             return nrp;
         }
 
