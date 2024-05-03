@@ -24,7 +24,7 @@ namespace CryptoUtils
         static EllipticCurve curve;
         static StreamReader sr;
 
-        public static void SetDomain(int bits)
+        public static void SetDomain(int bits, bool find=true)
         {
             sr = new StreamReader("mueller.raw");
             curve = new EllipticCurve(bits);
@@ -34,6 +34,7 @@ namespace CryptoUtils
 
             a = curve.a; b = curve.b;
             field = curve.field;
+            search = find;
 
             Polynomial.SetField(curve.field);
             ReadModularPolynomialsByLimit(curve.field);
@@ -456,7 +457,7 @@ namespace CryptoUtils
             order_mod = (field + 1 - te) % me;
             BigInteger order = Kangaroo(verbose, a, b, field, order_mod, me);
 
-            if (!BigInteger.IsProbablePrime(order)) return -1;
+            if (!BigInteger.IsProbablePrime(order) && search) return -1;
             return order;
         }
 

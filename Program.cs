@@ -11,28 +11,36 @@ namespace CryptoUtils
     {
         public static void Main(string[] args)
         {
-            IHost host = Host.CreateDefaultBuilder(args)
-                .ConfigureServices((hostContext, services) =>
-                {
-                    /* Add PostgreSQL database */
-                    services.AddEntityFrameworkNpgsql().AddDbContext<TrustGuardContext>(opt =>
-                        opt.UseNpgsql(hostContext.Configuration.GetConnectionString("TrustGuard")));
+            /* treat this application as a console tool */
+            if (args.Length > 0)
+            {
 
-                    /* get AppSettings config section */
-                    services.Configure<AppSettings>(
-                        hostContext.Configuration.GetSection(nameof(AppSettings)));
+            }
+            else
+            {
+                IHost host = Host.CreateDefaultBuilder(args)
+                    .ConfigureServices((hostContext, services) =>
+                    {
+                        /* Add PostgreSQL database */
+                        services.AddEntityFrameworkNpgsql().AddDbContext<TrustGuardContext>(opt =>
+                            opt.UseNpgsql(hostContext.Configuration.GetConnectionString("TrustGuard")));
 
-                    /* register AppSettings as singleton service */
-                    services.AddSingleton<IAppSettings>(sp =>
-                        sp.GetRequiredService<IOptions<AppSettings>>().Value);
+                        /* get AppSettings config section */
+                        services.Configure<AppSettings>(
+                            hostContext.Configuration.GetSection(nameof(AppSettings)));
 
-                    /* declares domain parameters service */
-                    services.AddTransient<IDomainService, DomainService>();
-                    services.AddHostedService<Worker>();
-                })
-                .Build();
+                        /* register AppSettings as singleton service */
+                        services.AddSingleton<IAppSettings>(sp =>
+                            sp.GetRequiredService<IOptions<AppSettings>>().Value);
 
-            host.Run();
+                        /* declares domain parameters service */
+                        services.AddTransient<IDomainService, DomainService>();
+                        services.AddHostedService<Worker>();
+                    })
+                    .Build();
+
+                host.Run();
+            }
         }
     }
 }
