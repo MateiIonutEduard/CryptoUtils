@@ -14,7 +14,27 @@ namespace CryptoUtils
             /* treat this application as a console tool */
             if (args.Length > 0)
             {
+                /* help requested about this app */
+                bool requestHelp = !string.IsNullOrEmpty(args.FirstOrDefault(arg => 
+                    arg.StartsWith("-h") || arg.StartsWith("--help")));
 
+                // if it is requested help, show how to use this app
+                if (requestHelp)
+                {
+                    Console.WriteLine("usage: BotanicTool [-bits] [size_in_bits] [-verb] [-S]\n");
+                    Console.WriteLine("Represents a tool that generates the elliptic curve parameters in finite fields for cryptographic use.");
+                    Console.WriteLine("This implementation favors strong elliptic curve parameter generation in finite fields, based on \nmodified SEA algorithm.\n");
+
+                    Console.WriteLine("options:");
+                    Console.WriteLine("-h, --help\tshow this help message and exit");
+                    Console.WriteLine("-bits, --bits\tSize in bits of the prime field of elliptic curve");
+                    Console.WriteLine("-verb, --verbose  Flag that enable the console messages printing when compute cardinality of elliptic curve");
+                    Console.WriteLine("-S, --search\tThis flag activates searching of the ideal strong cryptographic elliptic curves");
+                }
+                else
+                {
+
+                }
             }
             else
             {
