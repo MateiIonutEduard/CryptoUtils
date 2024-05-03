@@ -1,6 +1,7 @@
 using CryptoUtils.Data;
 using CryptoUtils.Models;
 using CryptoUtils.Services;
+using Eduard;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -25,15 +26,41 @@ namespace CryptoUtils
                     Console.WriteLine("Represents a tool that generates the elliptic curve parameters in finite fields for cryptographic use.");
                     Console.WriteLine("This implementation favors strong elliptic curve parameter generation in finite fields, based on \nmodified SEA algorithm.\n");
 
-                    Console.WriteLine("options:");
+                    Console.WriteLine("All options:");
                     Console.WriteLine("-h, --help\tshow this help message and exit");
                     Console.WriteLine("-bits, --bits\tSize in bits of the prime field of elliptic curve");
                     Console.WriteLine("-verb, --verbose  Flag that enable the console messages printing when compute cardinality of elliptic curve");
                     Console.WriteLine("-S, --search\tThis flag activates searching of the ideal strong cryptographic elliptic curves");
+                    Environment.Exit(1);
                 }
                 else
                 {
+                    bool verbose = !string.IsNullOrEmpty(args.FirstOrDefault(arg =>
+                        arg.StartsWith("-verb") || arg.StartsWith("--verbose")));
 
+                    bool search = !string.IsNullOrEmpty(args.FirstOrDefault(arg =>
+                        arg.StartsWith("-S") || arg.StartsWith("--search")));
+
+                    int index = Array.IndexOf(args, "-bits");
+                    if(index == -1) index = Array.IndexOf(args, "--bits");
+                    int? bits = index >= 0 ? Convert.ToInt32(args[index + 1]) : null;
+                    
+                    if(bits != null)
+                    {
+                        Core.SetDomain(bits.Value, search);
+                        EllipticCurve curve = Core.GenParameters(verbose);
+                        Console.WriteLine($"a = {curve.a}");
+
+                        Console.WriteLine($"b = {curve.b}");
+                        Console.WriteLine($"field = {curve.field}");
+                        Console.WriteLine($"order = {curve.order}");
+                        Environment.Exit(0);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid number of bits for elliptic curve.");
+                        Environment.Exit(-1);
+                    }
                 }
             }
             else

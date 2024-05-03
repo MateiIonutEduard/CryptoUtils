@@ -81,7 +81,7 @@ namespace CryptoUtils
 
             if(verbose) Console.WriteLine($"NP = {(field + 1 - t) % 2} mod {2}");
 
-            if ((field + 1 - t) % 2 == 0)
+            if ((field + 1 - t) % 2 == 0 && search)
                 return -1;
 
             Field delta = -16 * (4 * a * a * a + 27 * b * b);
@@ -214,7 +214,7 @@ namespace CryptoUtils
 
                         if (tau == 0)
                         {
-                            if ((field + 1 - tau) % p == 0)
+                            if ((field + 1 - tau) % p == 0 && search)
                                 return -1;
 
                             if(verbose) Console.WriteLine($"NP = {(field + 1 - (int)tau) % p} mod {p}");
@@ -432,7 +432,7 @@ namespace CryptoUtils
 
                         v.Add(p);
                         if(verbose) Console.WriteLine($"NP = {(field + 1 - u[u.Count - 1]) % p} mod {p}");
-                        if ((field + 1 - u[u.Count - 1]) % p == 0) return -1;
+                        if ((field + 1 - u[u.Count - 1]) % p == 0 && search) return -1;
                         break;
                     }
                 }
