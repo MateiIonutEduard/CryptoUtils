@@ -40,6 +40,22 @@ namespace CryptoUtils
             ReadModularPolynomialsByLimit(curve.field);
         }
 
+        public static void SetDomain(BigInteger a, BigInteger b, BigInteger field, bool find=true)
+        {
+			sr = new StreamReader("mueller.raw");
+            curve = new EllipticCurve(a, b, field, 0);
+
+			Util.modulo(curve.field);
+			Field.modulo(curve.field);
+
+			Core.a = curve.a; Core.b = curve.b;
+			Core.field = curve.field;
+			search = find;
+
+			Polynomial.SetField(curve.field);
+			ReadModularPolynomialsByLimit(curve.field);
+		}
+
         public static EllipticCurve GenParameters(bool verbose=false)
         {
             BigInteger order = Cardinality(verbose);

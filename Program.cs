@@ -5,6 +5,7 @@ using Eduard;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace CryptoUtils
 {
@@ -22,7 +23,7 @@ namespace CryptoUtils
                 // if it is requested help, show how to use this app
                 if (requestHelp)
                 {
-                    Console.WriteLine("usage: BotanicTool [-bits] [size_in_bits] [-verb] [-S]\n");
+                    Console.WriteLine("usage: CryptoUtils [-bits] [size_in_bits] [-verb] [-S]\n");
                     Console.WriteLine("Represents a tool that generates the elliptic curve parameters in finite fields for cryptographic use.");
                     Console.WriteLine("This implementation favors strong elliptic curve parameter generation in finite fields, based on \nmodified SEA algorithm.\n");
 
@@ -43,24 +44,46 @@ namespace CryptoUtils
 
                     int index = Array.IndexOf(args, "-bits");
                     if(index == -1) index = Array.IndexOf(args, "--bits");
+
                     int? bits = index >= 0 ? Convert.ToInt32(args[index + 1]) : null;
-                    
-                    if(bits != null)
+					Stopwatch sw = new Stopwatch();
+
+					if (bits != null)
                     {
                         Core.SetDomain(bits.Value, search);
-                        EllipticCurve curve = Core.GenParameters(verbose);
-                        Console.WriteLine($"a = {curve.a}");
+                        sw.Start();
+						EllipticCurve curve = Core.GenParameters(verbose);
+                        sw.Stop();
 
+                        Console.WriteLine($"a = {curve.a}");
                         Console.WriteLine($"b = {curve.b}");
+
                         Console.WriteLine($"field = {curve.field}");
                         Console.WriteLine($"order = {curve.order}");
-                        Environment.Exit(0);
+
+						Console.WriteLine($"Total Time: {sw.Elapsed.ToCustomString()}");
+						Environment.Exit(0);
                     }
                     else
                     {
-                        Console.WriteLine("Invalid number of bits for elliptic curve.");
-                        Environment.Exit(-1);
-                    }
+                        BigInteger a = new BigInteger(args[0]);
+						BigInteger b = new BigInteger(args[1]);
+						BigInteger field = new BigInteger(args[2]);
+
+						Core.SetDomain(a, b, field, search);
+                        sw.Start();
+						EllipticCurve curve = Core.GenParameters(verbose);
+                        sw.Stop();
+
+						Console.WriteLine($"a = {curve.a}");
+						Console.WriteLine($"b = {curve.b}");
+
+						Console.WriteLine($"field = {curve.field}");
+						Console.WriteLine($"order = {curve.order}");
+
+                        Console.WriteLine($"Total Time: {sw.Elapsed.ToCustomString()}");
+						Environment.Exit(0);
+					}
                 }
             }
             else
